@@ -86,8 +86,8 @@ function displayBooks() {
     // TODO: Create table rows for each book
     // For each book in filteredBooks:
     // - Create a table row
-    // - Add cells for each column (title, author, year, winner, publisher, series, genres)
-    // - Handle edge cases (empty series, empty genres, special characters)
+    // - Add cells for each column (title, author, type, award, publisher, series, genres)
+    // - Handle edge cases (series: false/string/object, empty genres, special characters)
     // - Append row to tableBody
 }
 
@@ -181,10 +181,12 @@ function showError(show) {
  *    - Debounce text input for better performance (optional)
  * 
  * 5. Edge Cases to Handle:
- *    - series: false vs empty string vs actual series name
+ *    - Nested award object: extract award.year, award.category, award.is_winner
+ *    - Format award display as "YYYY Winner" or "YYYY Nominee"
+ *    - series: false vs string vs object {name, order}
  *    - Empty genres arrays
  *    - Special characters in titles (quotes, apostrophes, etc.)
  *    - Long titles that might overflow table cells
- *    - Books with same author or year (test grouping)
+ *    - Mixed ID types (some string, some number)
  * 
  */

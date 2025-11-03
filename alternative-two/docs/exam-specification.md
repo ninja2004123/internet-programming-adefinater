@@ -14,6 +14,7 @@ Display books in a table with the following columns:
 
 - Title (text)
 - Author (text)
+- Type (text, extracted from `award.category` - typically "Best Novel" or "Best Novella")
 - Award (format: "YYYY Winner" or "YYYY Nominee", extracted from nested `award` object)
 - Publisher (text)
 - Series (text or "None" for `series: false`)
@@ -48,7 +49,10 @@ Display books in a table with the following columns:
 #### Data Robustness (15 points)
 
 - Extract and format award information from nested object (5 points)
-- Handle `series: false` values (3 points)
+- Handle all three series formats correctly (3 points):
+  - `series: false` → display "None" or "—"
+  - `series: "String"` → display the series name
+  - `series: {name, order}` → display formatted with order (e.g., "Series Name (#1)")
 - Process empty genres arrays correctly (3 points)
 - Display multiple genres properly (2 points)
 - Handle long book titles (2 points)
@@ -144,13 +148,16 @@ When filtering, sort results by:
 
 ### Edge Cases to Handle
 
-1. Books with `series: false`
-2. Empty genres arrays
-3. Multiple genres per book
-4. Special characters in titles
-5. Long titles
-6. Invalid/suspicious data entries
-7. Nested award object extraction
+1. Books with `series: false` (standalone books)
+2. Books with `series: "String"` (series name only, no order)
+3. Books with `series: {name, order}` (series name with order number)
+4. Empty genres arrays
+5. Multiple genres per book
+6. Special characters in titles
+7. Long titles
+8. Mixed ID types (string and number)
+9. Invalid/suspicious data entries
+10. Nested award object extraction
 
 ### Error Scenarios
 
@@ -174,17 +181,33 @@ Each book object in the JSON contains:
     "is_winner": true
   },
   "publisher": "Publisher Name",
-  "series": "Series Name" | false,
+  "series": false |"Series Name" | {"name": "Series Name", "order": 1},
   "genres": ["Genre1", "Genre2"] | []
 }
 ```
 
 **Important Notes:**
+- `id` can be either a string or number (handle type coercion)
 - `award` is a nested object with three properties
 - `award.year` is a number representing the Hugo Award year
 - `award.is_winner` is a boolean (true for winners, false for nominees)
 - `award.category` is typically "Best Novel" but may vary
 - Must extract and format: `"{year} Winner"` or `"{year} Nominee"`
+- `series` has **three possible formats**:
+  - `false`: standalone book (not part of a series) - display "None" or "—"
+  - `"Series Name"`: part of a series with unclear order - display the series name
+  - `{"name": "Series Name", "order": 1}`: part of a series with known order - display as "Series Name (#1)" or similar
+- `genres` is an array that can be empty `[]` or contain multiple genre strings
+
+**Edge Cases to Handle:**
+- Books with `series: false` (display "None" or "—")
+- Books with series as string (no order information available)
+- Books with series as object (extract name and order for display)
+- Empty genres arrays (display "None" or appropriate message)
+- Multiple genres per book (display comma-separated or in a meaningful way)
+- Special characters in titles (quotes, apostrophes, ampersands)
+- Long book titles (ensure proper text wrapping/truncation)
+- Mixed ID types (some numeric, some string - ensure consistent comparison)
 
 ## Submission Requirements
 

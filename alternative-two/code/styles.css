@@ -234,6 +234,12 @@ header p {
     font-style: italic;
 }
 
+/* Book Type/Category Display */
+.book-type {
+    font-size: 0.9em;
+    color: #495057;
+}
+
 /* Genres Display */
 .genres-list {
     font-size: 0.9em;

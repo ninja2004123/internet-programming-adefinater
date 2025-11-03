@@ -162,6 +162,50 @@ When filtering, sort results by:
 3. Missing required fields
 4. Malformed data values
 
+## Data Structure
+
+Each episode object in the JSON contains:
+
+```json
+{
+  "rank": 65,
+  "title": "Episode Title",
+  "series": 1,
+  "era": "Classic",
+  "broadcast_date": "1963-11-23",
+  "director": "Director Name",
+  "writer": "Writer Name",
+  "doctor": {
+    "actor": "William Hartnell",
+    "incarnation": "First Doctor"
+  },
+  "companion": {
+    "actor": "Carole Ann Ford",
+    "character": "Susan Foreman"
+  },
+  "cast": [
+    {"actor": "Actor Name", "character": "Character Name"}
+  ]
+}
+```
+
+**Important Notes:**
+- `rank` is a number representing the episode's ranking (may be negative in edge cases)
+- `broadcast_date` can be in multiple formats: "YYYY-MM-DD", "DD/MM/YYYY", "Month DD, YYYY", or "YYYY"
+- `doctor` is an object with `actor` (string) and `incarnation` (string) properties
+- `companion` can be `null` for episodes without a companion
+- `cast` is an array of objects, can be empty `[]`
+- `writer` may contain multiple writers separated by "&" or "and"
+- Special characters (quotes, apostrophes, hyphens, slashes) may appear in titles
+
+**Edge Cases to Handle:**
+- Episodes with `companion: null` (display "None" or "—")
+- Episodes with empty cast arrays (display "0" or appropriate message)
+- Multiple writers: "Writer A & Writer B" or "Writer A and Writer B"
+- Mixed date formats that must sort correctly
+- Negative or zero ranks (test data validation)
+- Special characters in titles: quotes ("), apostrophes ('), hyphens (-), slashes (/)
+
 ## Submission Requirements
 
 ### Required Files
