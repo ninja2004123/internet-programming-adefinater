@@ -546,12 +546,65 @@ function filterEpisodes() {
         selectedEpisode = state.filtered[state.keyboard.selectedRowIndex];
     }
 
-    // Apply current sort after filtering
-    if (state.sort.field) {
-        sortEpisodes(state.sort.field);
-    } else {
-        // If no sort is applied, just display the filtered results
+    // If a name filter is active, apply smart relevance sorting
+    if (nameFilter) {
+        const term = nameFilter;
+
+        function matchesAnyField(ep) {
+            const fields = [];
+            fields.push(ep.title || '');
+            fields.push(String(ep.series || ''));
+            fields.push(ep.era || '');
+            fields.push(ep.broadcast_date || '');
+            fields.push(ep.director || '');
+            fields.push(ep.writer || '');
+            if (ep.doctor) {
+                fields.push(ep.doctor.actor || '');
+                fields.push(ep.doctor.incarnation || '');
+            }
+            if (ep.companion) {
+                fields.push(ep.companion.actor || '');
+                fields.push(ep.companion.character || '');
+            }
+            if (Array.isArray(ep.cast)) {
+                fields.push(...ep.cast.map(c => (c.name || c).toString()));
+            }
+            const joined = fields.join(' ').toLowerCase();
+            return joined.includes(term);
+        }
+
+        state.filtered.sort((a, b) => {
+            const aTitle = (a.title || '').toLowerCase();
+            const bTitle = (b.title || '').toLowerCase();
+
+            // Score: 3 = exact title match, 2 = title contains, 1 = any field contains, 0 = none
+            function score(ep, title) {
+                if (title === term) return 3;
+                if (title.includes(term)) return 2;
+                if (matchesAnyField(ep)) return 1;
+                return 0;
+            }
+
+            const sa = score(a, aTitle);
+            const sb = score(b, bTitle);
+            if (sa !== sb) return sb - sa; // higher score first
+
+            // Tie-breaker: preserve rank order (ascending)
+            const ra = a.rank || Number.MAX_SAFE_INTEGER;
+            const rb = b.rank || Number.MAX_SAFE_INTEGER;
+            return ra - rb;
+        });
+
+        // Display sorted results
         displayEpisodes(state.filtered);
+    } else {
+        // Apply current sort after filtering
+        if (state.sort.field) {
+            sortEpisodes(state.sort.field);
+        } else {
+            // If no sort is applied, just display the filtered results
+            displayEpisodes(state.filtered);
+        }
     }
 
     // Restore selection if possible
