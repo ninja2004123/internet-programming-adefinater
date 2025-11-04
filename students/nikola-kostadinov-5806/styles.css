@@ -162,9 +162,23 @@ select:focus {
     box-shadow: 0 0 0 2px rgba(42,82,152,0.2);
 }
 
-/* Table Row Hover */
+/* Table Row Hover and Focus */
 tbody tr:hover {
     background: #f8f9fa;
+}
+
+tbody tr:focus,
+tbody tr.keyboard-selected {
+    background: #e8f0fe;
+    outline: 2px solid #2a5298;
+    outline-offset: -2px;
+}
+
+/* Table Header Focus */
+th:focus {
+    outline: 2px solid #ffffff;
+    outline-offset: -2px;
+    background: #1e3c72;
 }
 
 /* Cell Formatting */

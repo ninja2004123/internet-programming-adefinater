@@ -33,13 +33,144 @@ let state = {
         era: '',          // Era filter
         doctor: '',        // Doctor filter
         companion: ''      // Companion filter
+    },
+    keyboard: {
+        selectedRowIndex: -1,  // Currently selected row index
+        selectedColumn: null   // Currently focused column
     }
 };
 
 // Initialize Application
 async function init() {
     setupEventListeners();
+    setupKeyboardNavigation();
     await loadEpisodes();
+}
+
+// Setup Keyboard Navigation
+function setupKeyboardNavigation() {
+    const table = document.getElementById('episodes-table');
+    
+    // Handle table keyboard navigation
+    table.addEventListener('keydown', (e) => {
+        const tbody = document.getElementById('episodes-body');
+        const rows = tbody.getElementsByTagName('tr');
+        const currentIndex = state.keyboard.selectedRowIndex;
+        let newIndex = currentIndex;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                newIndex = Math.min(currentIndex + 1, rows.length - 1);
+                if (currentIndex === -1) newIndex = 0;
+                selectRow(newIndex);
+                break;
+
+            case 'ArrowUp':
+                e.preventDefault();
+                newIndex = Math.max(currentIndex - 1, 0);
+                selectRow(newIndex);
+                break;
+
+            case 'Enter':
+                e.preventDefault();
+                // Prefer the selectedColumn state, but fall back to the currently focused header
+                let field = state.keyboard.selectedColumn;
+                if (!field) {
+                    const active = document.activeElement;
+                    if (active && active.matches && active.matches('th[data-sort]')) {
+                        field = active.dataset.sort;
+                    }
+                }
+
+                if (field) {
+                    // Toggle sort direction if clicking the same column
+                    if (field === state.sort.field) {
+                        state.sort.ascending = !state.sort.ascending;
+                    } else {
+                        state.sort.field = field;
+                        state.sort.ascending = true;
+                    }
+
+                    // Keep keyboard state in sync
+                    state.keyboard.selectedColumn = field;
+
+                    // Update sort indicators and sort
+                    const header = document.querySelector(`th[data-sort="${field}"]`);
+                    if (header) updateSortIndicators(header);
+                    sortEpisodes(field);
+                }
+                break;
+        }
+    });
+
+    // Make column headers focusable and handle keyboard selection
+    const headers = document.querySelectorAll('th[data-sort]');
+    headers.forEach(header => {
+        header.setAttribute('tabindex', '0');
+        
+        header.addEventListener('focus', () => {
+            state.keyboard.selectedColumn = header.dataset.sort;
+        });
+
+        header.addEventListener('blur', () => {
+            if (!header.contains(document.activeElement)) {
+                state.keyboard.selectedColumn = null;
+            }
+        });
+
+        header.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                header.click(); // Trigger the existing click handler
+                // Prevent the table-level keydown handler from also handling this Enter
+                e.stopPropagation();
+            }
+        });
+    });
+
+    // Ensure only one selected row exists when focus moves (e.g., Tab)
+    document.addEventListener('focusin', (e) => {
+        const row = e.target.closest && e.target.closest('#episodes-body tr');
+        if (row) {
+            // If focus moved to a row, select it
+            const idx = Number(row.getAttribute('data-row-index'));
+            if (!isNaN(idx)) selectRow(idx);
+        } else {
+            // Focus moved away from rows: clear selection
+            clearRowSelection();
+        }
+    });
+}
+
+// Helper function to select a row and scroll it into view
+function selectRow(index) {
+    const tbody = document.getElementById('episodes-body');
+    const rows = tbody.getElementsByTagName('tr');
+    
+    // Remove previous selection
+    if (state.keyboard.selectedRowIndex !== -1 && rows[state.keyboard.selectedRowIndex]) {
+        rows[state.keyboard.selectedRowIndex].classList.remove('keyboard-selected');
+    }
+    
+    // Update state and add new selection
+    state.keyboard.selectedRowIndex = index;
+    if (index !== -1 && rows[index]) {
+        rows[index].classList.add('keyboard-selected');
+        rows[index].focus();
+        rows[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+}
+
+// Clear any row selection without focusing another element
+function clearRowSelection() {
+    const tbody = document.getElementById('episodes-body');
+    if (!tbody) return;
+    const rows = tbody.getElementsByTagName('tr');
+    if (state.keyboard.selectedRowIndex !== -1 && rows[state.keyboard.selectedRowIndex]) {
+        rows[state.keyboard.selectedRowIndex].classList.remove('keyboard-selected');
+    }
+    state.keyboard.selectedRowIndex = -1;
 }
 
 // Populate Filter Options
@@ -74,6 +205,10 @@ function setupEventListeners() {
             updateSortIndicators(header);
             
             // Sort and display
+            // Keep keyboard state in sync: mark this column as the selected column
+            state.keyboard.selectedColumn = field;
+            // Ensure keyboard focus follows clicking so Enter behaves consistently
+            try { header.focus(); } catch (err) { /* ignore */ }
             sortEpisodes(field);
         });
     });
@@ -162,8 +297,10 @@ async function loadEpisodes() {
         // Initialize filtered episodes with all episodes
         state.filtered = [...state.episodes];
         
-        // Display the episodes
+        // Display the episodes and reset keyboard navigation
         displayEpisodes(state.filtered);
+        state.keyboard.selectedRowIndex = -1;
+        state.keyboard.selectedColumn = null;
         
     } catch (error) {
         showError(`Failed to load episodes: ${error.message}`);
@@ -193,8 +330,12 @@ function displayEpisodes(episodes) {
     noResults.style.display = 'none';
 
     // Create row for each episode
-    episodes.forEach(episode => {
+    episodes.forEach((episode, index) => {
         const row = document.createElement('tr');
+        
+        // Make row focusable and navigable
+        row.setAttribute('tabindex', '0');
+        row.setAttribute('data-row-index', index.toString());
         
         // Format and add each cell with edge case handling
         row.innerHTML = `
@@ -399,12 +540,28 @@ function filterEpisodes() {
         return true;
     });
 
+    // Store currently selected episode if any
+    let selectedEpisode = null;
+    if (state.keyboard.selectedRowIndex >= 0 && state.keyboard.selectedRowIndex < state.filtered.length) {
+        selectedEpisode = state.filtered[state.keyboard.selectedRowIndex];
+    }
+
     // Apply current sort after filtering
     if (state.sort.field) {
         sortEpisodes(state.sort.field);
     } else {
         // If no sort is applied, just display the filtered results
         displayEpisodes(state.filtered);
+    }
+
+    // Restore selection if possible
+    if (selectedEpisode) {
+        const newIndex = state.filtered.findIndex(ep => ep.rank === selectedEpisode.rank);
+        if (newIndex !== -1) {
+            selectRow(newIndex);
+        } else {
+            state.keyboard.selectedRowIndex = -1;
+        }
     }
 
     // Show "no results" if filtered array is empty
